@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Göz Damlası Takip & Akustik Alarm</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --accent-color: #38bdf8;
+            --success-color: #22c55e;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        header {
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .permission-card {
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .permission-card p {
+            font-size: 0.85rem;
+            color: #bae6fd;
+        }
+
+        .btn {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-warning { background-color: var(--warning-color); color: #000; }
+        .btn-primary { background-color: var(--accent-color); color: #0f172a; }
+        .btn-danger { background-color: var(--danger-color); color: #fff; }
+        .btn-success { background-color: var(--success-color); color: #fff; }
+        .btn-secondary { background-color: #334155; color: var(--text-main); }
+
+        .countdown-card {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 18px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .countdown-card .label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+        .countdown-card .next-drop { font-size: 1.1rem; font-weight: 600; color: var(--accent-color); margin-bottom: 8px; }
+
+        .timer-display {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #fff;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .plan-card {
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .plan-card h2 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .form-group label { font-size: 0.8rem; color: var(--text-muted); }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--accent-color); }
+
+        .drop-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .drop-item {
+            background: var(--card-bg);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .drop-item.done {
+            border-color: var(--success-color);
+            opacity: 0.6;
+            background: rgba(34, 197, 94, 0.05);
+        }
+
+        .drop-item.done .drop-time { text-decoration: line-through; }
+
+        .drop-info { display: flex; flex-direction: column; gap: 2px; }
+        .drop-name { font-weight: 600; font-size: 0.95rem; }
+        .drop-time { font-size: 1.1rem; font-weight: 700; color: var(--accent-color); }
+
+        .empty-state {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border: 1px dashed #334155;
+            border-radius: 12px;
+        }
+
+        /* Yumuşak Akustik Alarm Ekranı */
+        .alarm-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: rgba(15, 23, 42, 0.95);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .alarm-content {
+            background: var(--card-bg);
+            padding: 30px 20px;
+            border-radius: 20px;
+            border: 2px solid var(--accent-color);
+            max-width: 90%;
+            width: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+        }
+
+        .alarm-title { font-size: 1.6rem; color: var(--accent-color); font-weight: 800; }
+        .alarm-subtitle { font-size: 1.1rem; color: #fff; }
+        .alarm-drop-name { font-size: 1.8rem; color: #f8fafc; font-weight: 700; }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 340px;
+            text-align: center;
+            border: 1px solid #334155;
+        }
+
+        .modal p { font-size: 0.9rem; color: var(--text-muted); margin: 10px 0 20px; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>💧 Göz Damlası Takibi</h1>
+        </header>
+
+        <!-- Ses / Bildirim Kutusu -->
+        <div id="permissionCard" class="permission-card">
+            <p>🎵 Akustik alarm melodisinin çalması için tarayıcı sesini aktif edin:</p>
+            <button class="btn btn-primary" onclick="enableAudioAndNotifications()">
+                🔔 Ses Sistemini Aktif Et
+            </button>
+        </div>
+
+        <!-- Sayaç Kartı -->
+        <div class="countdown-card">
+            <div class="label">Sıradaki Damlanız</div>
+            <div id="nextDropText" class="next-drop">Yükleniyor...</div>
+            <div id="timerDisplay" class="timer-display">00:00:00</div>
+        </div>
+
+        <!-- Manuel Ekleme Formu -->
+        <div class="plan-card">
+            <h2>➕ Tekli Damla Ekle</h2>
+            <form id="manualAddForm" onsubmit="handleAddDrop(event)">
+                <div class="form-group">
+                    <label for="dropName">Damla Adı (Örn: Maxidex, Systane)</label>
+                    <input type="text" id="dropName" placeholder="Damla adı yazın" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="dropTime">Saat</label>
+                        <input type="time" id="dropTime" required>
+                    </div>
+
+                    <div class="form-group" style="display: flex; align-items: flex-end;">
+                        <button type="submit" class="btn btn-success" style="width: 100%;">Ekle</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Damla Listesi -->
+        <div class="drop-list" id="dropList"></div>
+
+        <!-- Sıfırla Alanı -->
+        <div style="margin-top: 10px;">
+            <button class="btn btn-danger" style="width: 100%;" onclick="openResetModal()">
+                🗑️ Tüm Listeyi ve Saatleri Temizle
+            </button>
+        </div>
+    </div>
+
+    <!-- Akustik Alarm Ekranı -->
+    <div id="alarmOverlay" class="alarm-overlay">
+        <div class="alarm-content">
+            <div class="alarm-title">💧 DAMLA ZAMANI</div>
+            <div class="alarm-subtitle">Uygulanacak Damla:</div>
+            <div id="alarmDropName" class="alarm-drop-name">Damla Adı</div>
+            <button class="btn btn-success" style="width: 100%; padding: 16px; font-size: 1.1rem;" onclick="stopAlarmAndMark()">
+                ✅ DAMLATTIM & KAPAT
+            </button>
+        </div>
+    </div>
+
+    <!-- Sıfırlama Modalı -->
+    <div id="resetModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Listeyi Temizle</h3>
+            <p>Eklenen tüm damlalar ve saatler silinecek. Emin misiniz?</p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeResetModal()">İptal</button>
+                <button class="btn btn-danger" onclick="confirmReset()">Evet, Sil</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let drops = JSON.parse(localStorage.getItem('eye_drops')) || [];
+        let audioCtx = null;
+        let melodyInterval = null;
+        let currentAlarmDropId = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderList();
+            startTimerLoop();
+            
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('dropTime').value = `${hours}:${minutes}`;
+        });
+
+        function enableAudioAndNotifications() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            if ("Notification" in window) {
+                Notification.requestPermission();
+            }
+            alert("✅ Akustik ses sistemi aktif!");
+            document.getElementById('permissionCard').style.display = 'none';
+        }
+
+        // MANUEL TEK TEK EKLEME
+        function handleAddDrop(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('dropName').value.trim();
+            const timeStr = document.getElementById('dropTime').value;
+
+            if (!name || !timeStr) return;
+
+            drops.push({
+                id: Date.now() + "_" + Math.random(),
+                name: name,
+                time: timeStr,
+                done: false
+            });
+
+            // Saat sırasına göre sırala
+            drops.sort((a, b) => a.time.localeCompare(b.time));
+            saveAndRender();
+            
+            document.getElementById('dropName').value = '';
+        }
+
+        function renderList() {
+            const listEl = document.getElementById('dropList');
+            listEl.innerHTML = '';
+
+            if (drops.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        Henüz damla eklenmedi.<br>
+                        Yukarıdaki formdan dilediğiniz saatleri tek tek ekleyebilirsiniz.
+                    </div>
+                `;
+                document.getElementById('nextDropText').innerText = "Tanımlı Damla Yok";
+                document.getElementById('timerDisplay').innerText = "00:00:00";
+                return;
+            }
+
+            drops.forEach(drop => {
+                const item = document.createElement('div');
+                item.className = `drop-item ${drop.done ? 'done' : ''}`;
+                item.innerHTML = `
+                    <div class="drop-info">
+                        <span class="drop-name">${escapeHtml(drop.name)}</span>
+                        <span class="drop-time">⏰ ${drop.time}</span>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button class="btn ${drop.done ? 'btn-secondary' : 'btn-success'}" onclick="toggleDone('${drop.id}')">
+                            ${drop.done ? 'Geri Al' : 'Damlattım'}
+                        </button>
+                        <button class="btn btn-secondary" onclick="deleteDrop('${drop.id}')" style="padding: 12px 10px;">❌</button>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function toggleDone(id) {
+            const drop = drops.find(d => d.id === id);
+            if (drop) {
+                drop.done = !drop.done;
+                saveAndRender();
+            }
+        }
+
+        function deleteDrop(id) {
+            drops = drops.filter(d => d.id !== id);
+            saveAndRender();
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('eye_drops', JSON.stringify(drops));
+            renderList();
+        }
+
+        function openResetModal() { document.getElementById('resetModal').style.display = 'flex'; }
+        function closeResetModal() { document.getElementById('resetModal').style.display = 'none'; }
+        function confirmReset() {
+            drops = [];
+            localStorage.removeItem('eye_drops');
+            renderList();
+            closeResetModal();
+        }
+
+        function startTimerLoop() {
+            setInterval(() => {
+                const now = new Date();
+                const currentHHMM = String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');
+                const currentSeconds = now.getSeconds();
+
+                const pendingDrops = drops.filter(d => !d.done);
+
+                if (pendingDrops.length === 0) {
+                    document.getElementById('nextDropText').innerText = "Tüm Damlalar Tamamlandı 🎉";
+                    document.getElementById('timerDisplay').innerText = "00:00:00";
+                    return;
+                }
+
+                let nextDrop = null;
+                let minDiff = Infinity;
+
+                pendingDrops.forEach(drop => {
+                    const [h, m] = drop.time.split(':').map(Number);
+                    let dropDate = new Date();
+                    dropDate.setHours(h, m, 0, 0);
+
+                    if (dropDate < now) dropDate.setDate(dropDate.getDate() + 1);
+
+                    let diff = dropDate - now;
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        nextDrop = drop;
+                    }
+
+                    if (currentHHMM === drop.time && currentSeconds === 0) {
+                        triggerAlarm(drop);
+                    }
+                });
+
+                if (nextDrop) {
+                    document.getElementById('nextDropText').innerText = `${nextDrop.name} (${nextDrop.time})`;
+                    let hours = Math.floor(minDiff / (1000 * 60 * 60));
+                    let minutes = Math.floor((minDiff % (1000 * 60 * 60)) / (1000 * 60));
+                    let seconds = Math.floor((minDiff % (1000 * 60)) / 1000);
+
+                    document.getElementById('timerDisplay').innerText = 
+                        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function triggerAlarm(drop) {
+            currentAlarmDropId = drop.id;
+            document.getElementById('alarmDropName').innerText = drop.name;
+            document.getElementById('alarmOverlay').style.display = 'flex';
+
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("💧 DAMLA ZAMANI", {
+                    body: `${drop.name} damlanızı damlatma saati geldi!`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/822/822118.png"
+                });
+            }
+
+            startAcousticMelody();
+        }
+
+        // YUMUŞAK AKUSTİK ÇAN / MARIMBA MELODİSİ
+        function startAcousticMelody() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            // Hoş ve sakin bir akor dizisi (C major marimba tarzı çan sesleri)
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            let noteIndex = 0;
+
+            playNote(notes[0]);
+
+            melodyInterval = setInterval(() => {
+                noteIndex = (noteIndex + 1) % notes.length;
+                playNote(notes[noteIndex]);
+            }, 800); // 0.8 saniyede bir yumuşak nota
+        }
+
+        function playNote(freq) {
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+
+                // Sine wave akustik çana en yakın yumuşak tondur
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+
+                // Yumuşak fade-out (azalan ses zarfı)
+                let now = audioCtx.currentTime;
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.6);
+            } catch (e) {}
+        }
+
+        function stopAlarmAndMark() {
+            if (melodyInterval) {
+                clearInterval(melodyInterval);
+                melodyInterval = null;
+            }
+            document.getElementById('alarmOverlay').style.display = 'none';
+            if (currentAlarmDropId) {
+                toggleDone(currentAlarmDropId);
+                currentAlarmDropId = null;
+            }
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<"']/g, m => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m]));
+        }
+    </script>
+</body>
+</html>

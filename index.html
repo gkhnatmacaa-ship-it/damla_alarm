@@ -260,9 +260,9 @@
 
         <!-- Ses / Bildirim Kutusu -->
         <div id="permissionCard" class="permission-card">
-            <p>🎵 Akustik alarm melodisinin çalması için tarayıcı sesini aktif edin:</p>
-            <button class="btn btn-primary" onclick="enableAudioAndNotifications()">
-                🔔 Ses Sistemini Aktif Et
+            <p>🎵 Alarmın sorunsuz çalması ve ekranın kararmaması için aktif edin:</p>
+            <button class="btn btn-primary" onclick="enableAudioAndWakeLock()">
+                🔔 Ses Sistemini ve Korumayı Başlat
             </button>
         </div>
 
@@ -335,6 +335,7 @@
         let audioCtx = null;
         let melodyInterval = null;
         let currentAlarmDropId = null;
+        let wakeLock = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             renderList();
@@ -346,18 +347,34 @@
             document.getElementById('dropTime').value = `${hours}:${minutes}`;
         });
 
-        function enableAudioAndNotifications() {
+        // Ekranın kararmasını önleyen ve ses bağlamını açan fonksiyon
+        async function enableAudioAndWakeLock() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            if ("Notification" in window) {
-                Notification.requestPermission();
+            // Wake Lock API (Tarayıcının arka planda işlem yapmasını ve ekran korumaya geçmesini engellemeye çalışır)
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock aktif!');
+                }
+            } catch (err) {
+                console.log('Wake Lock hatası: ', err);
             }
-            alert("✅ Akustik ses sistemi aktif!");
+
+            alert("✅ Ses sistemi ve sistem koruması aktif edildi!");
             document.getElementById('permissionCard').style.display = 'none';
         }
 
-        // MANUEL TEK TEK EKLEME
+        // Sayfa tekrar görünür olduğunda Wake Lock'u yenile
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {}
+            }
+        });
+
         function handleAddDrop(e) {
             e.preventDefault();
 
@@ -373,7 +390,6 @@
                 done: false
             });
 
-            // Saat sırasına göre sırala
             drops.sort((a, b) => a.time.localeCompare(b.time));
             saveAndRender();
             
@@ -494,23 +510,14 @@
             document.getElementById('alarmDropName').innerText = drop.name;
             document.getElementById('alarmOverlay').style.display = 'flex';
 
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("💧 DAMLA ZAMANI", {
-                    body: `${drop.name} damlanızı damlatma saati geldi!`,
-                    icon: "https://cdn-icons-png.flaticon.com/512/822/822118.png"
-                });
-            }
-
             startAcousticMelody();
         }
 
-        // YUMUŞAK AKUSTİK ÇAN / MARIMBA MELODİSİ
         function startAcousticMelody() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            // Hoş ve sakin bir akor dizisi (C major marimba tarzı çan sesleri)
-            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            const notes = [523.25, 659.25, 783.99, 1046.50];
             let noteIndex = 0;
 
             playNote(notes[0]);
@@ -518,7 +525,7 @@
             melodyInterval = setInterval(() => {
                 noteIndex = (noteIndex + 1) % notes.length;
                 playNote(notes[noteIndex]);
-            }, 800); // 0.8 saniyede bir yumuşak nota
+            }, 800);
         }
 
         function playNote(freq) {
@@ -526,11 +533,9 @@
                 let osc = audioCtx.createOscillator();
                 let gain = audioCtx.createGain();
 
-                // Sine wave akustik çana en yakın yumuşak tondur
                 osc.type = 'sine';
                 osc.frequency.value = freq;
 
-                // Yumuşak fade-out (azalan ses zarfı)
                 let now = audioCtx.currentTime;
                 gain.gain.setValueAtTime(0.3, now);
                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
